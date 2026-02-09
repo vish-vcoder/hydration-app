@@ -26,68 +26,60 @@ body{
   width:340px;
   padding:22px;
   border-radius:28px;
-  background:rgba(255,255,255,.55);
+  background:rgba(255,255,255,.6);
   backdrop-filter:blur(20px);
   box-shadow:0 20px 40px rgba(0,0,0,.08);
   text-align:center;
 }
 
-svg{
-  width:220px;
-  height:260px;
-}
+/* SVG */
+svg{ width:220px;height:260px }
 
 /* glow */
 .glow{
-  filter:drop-shadow(0 0 24px rgba(77,166,255,1));
-  animation:pulse 1.8s infinite;
-}
-@keyframes pulse{
-  0%,100%{filter:drop-shadow(0 0 10px rgba(77,166,255,.6))}
-  50%{filter:drop-shadow(0 0 30px rgba(77,166,255,1))}
+  filter:drop-shadow(0 0 25px rgba(77,166,255,1));
 }
 
+/* jiggle */
+.jiggle{
+  animation:jig .35s;
+}
+@keyframes jig{
+  0%{transform:rotate(-2deg)}
+  50%{transform:rotate(2deg)}
+  100%{transform:rotate(0)}
+}
+
+/* fish */
+.fish{
+  position:absolute;
+  font-size:22px;
+  opacity:0;
+}
+.swim{
+  animation:swim 3s linear forwards;
+}
+@keyframes swim{
+  0%{left:-40px;opacity:1}
+  100%{left:260px;opacity:1}
+}
+
+/* buttons */
 button{
   border:none;
   border-radius:14px;
   padding:9px 14px;
   margin:4px;
   font-weight:600;
-  background:var(--blue);
+  background:#4da6ff;
   color:white;
 }
 .undo{background:#888}
-.reset{background:var(--red)}
+.reset{background:#ff4d4d}
 
 .progress{margin:10px;font-weight:600}
 
-/* graph */
-.graph{
-  margin-top:14px;
-  height:60px;
-  display:flex;
-  align-items:flex-end;
-  gap:6px;
-  justify-content:center;
-}
-.bar{
-  width:10px;
-  background:#4da6ff;
-  border-radius:6px;
-  opacity:.7;
-}
-
-.streak{margin-top:6px;font-size:14px}
 .message{margin-top:6px;font-weight:600;color:#ff4d4d}
-
-/* 🌊 wave animation */
-.wave{
-  animation:waveMove 3s linear infinite;
-}
-@keyframes waveMove{
-  from{transform:translateX(0)}
-  to{transform:translateX(-40px)}
-}
 </style>
 </head>
 
@@ -97,7 +89,9 @@ button{
 
 <h3>Hydrate 💧</h3>
 
-<svg id="svg" viewBox="0 0 200 260">
+<div style="position:relative">
+
+<svg viewBox="0 0 200 260" id="svg">
 
 <defs>
 <clipPath id="clip" clipPathUnits="userSpaceOnUse">
@@ -112,22 +106,10 @@ button{
 </linearGradient>
 </defs>
 
-<!-- water group -->
-<g clip-path="url(#clip)" id="waterGroup">
-
-  <rect id="waterRect"
-        x="0" y="260"
-        width="200" height="0"
-        fill="url(#waterGrad)"/>
-
-  <!-- 🌊 wave overlay -->
-  <path id="wave"
-        class="wave"
-        fill="rgba(255,255,255,.35)"
-        d="M0 0 Q20 8 40 0 T80 0 T120 0 T160 0 T200 0 V40 H0Z"/>
+<g clip-path="url(#clip)">
+  <rect id="waterRect" x="0" y="260" width="200" height="0" fill="url(#waterGrad)"/>
 </g>
 
-<!-- outline -->
 <path id="outline"
 d="M100 10 C60 70 25 120 25 165
    A75 75 0 0 0 175 165
@@ -136,18 +118,20 @@ stroke="#4da6ff" stroke-width="6" fill="none"/>
 
 </svg>
 
+<div id="fish" class="fish">🐟</div>
+</div>
+
 <div class="progress" id="progress"></div>
 
 <div>
 <button onclick="add(100)">+100</button>
 <button onclick="add(250)">+250</button>
 <button onclick="add(500)">+500</button>
+<button onclick="custom()">Custom</button>
 <button onclick="undo()" class="undo">Undo</button>
 <button onclick="resetDay()" class="reset">Reset</button>
 </div>
 
-<div class="graph" id="graph"></div>
-<div class="streak" id="streak"></div>
 <div class="message" id="message"></div>
 
 </div>
@@ -157,17 +141,14 @@ const GOAL=1500
 let history=[]
 
 let data=JSON.parse(localStorage.getItem("hydration"))||{
-  today:0, streak:0, best:0,
-  history:Array(7).fill(0),
-  date:new Date().toDateString(),
-  lastFail:false
+  today:0
 }
 
 function save(){
   localStorage.setItem("hydration",JSON.stringify(data))
 }
 
-/* 🫧 realistic bubbles/glug sound */
+/* bubble sound */
 function bubble(){
   const ctx=new AudioContext()
 
@@ -175,18 +156,29 @@ function bubble(){
     const o=ctx.createOscillator()
     const g=ctx.createGain()
     o.frequency.value=freq
-    o.type="sine"
     o.connect(g);g.connect(ctx.destination)
-    g.gain.setValueAtTime(.15,ctx.currentTime+time)
+    g.gain.setValueAtTime(.2,ctx.currentTime+time)
     g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+time+.12)
     o.start(ctx.currentTime+time)
     o.stop(ctx.currentTime+time+.12)
   }
 
-  pop(700,0)
-  pop(900,.05)
-  pop(600,.1)
-  pop(1200,.15)
+  pop(600,0); pop(900,.05); pop(1200,.1)
+}
+
+/* jiggle */
+function jiggle(){
+  const s=document.getElementById("svg")
+  s.classList.add("jiggle")
+  setTimeout(()=>s.classList.remove("jiggle"),300)
+}
+
+/* fish swim */
+function fishSwim(){
+  const f=document.getElementById("fish")
+  f.classList.remove("swim")
+  void f.offsetWidth
+  f.classList.add("swim")
 }
 
 /* actions */
@@ -194,7 +186,13 @@ function add(v){
   history.push(v)
   data.today+=v
   bubble()
+  jiggle()
   update()
+}
+
+function custom(){
+  const v=parseInt(prompt("Enter ml"))
+  if(v) add(v)
 }
 
 function undo(){
@@ -204,12 +202,12 @@ function undo(){
 }
 
 function resetDay(){
-  if(!confirm("Reset today’s logs?")) return
   data.today=0
   history=[]
   update()
 }
 
+/* update UI */
 function update(){
   const pct=Math.min(100,(data.today/GOAL)*100)
   const h=260*(pct/100)
@@ -218,15 +216,49 @@ function update(){
   rect.setAttribute("height",h)
   rect.setAttribute("y",260-h)
 
-  document.getElementById("wave")
-    .setAttribute("transform",`translate(0,${260-h-10})`)
-
   document.getElementById("progress").innerText=
     `${data.today} / ${GOAL} ml`
+
+  const msg=document.getElementById("message")
+  msg.innerText=""
+
+  if(data.today>=GOAL){
+    document.getElementById("svg").classList.add("glow")
+    msg.innerText="Good 💧"
+    fishSwim()
+  }else{
+    document.getElementById("svg").classList.remove("glow")
+  }
 
   save()
 }
 
+/* fun smart notifications */
+function setupNotifications(){
+  if(!("Notification" in window)) return
+  Notification.requestPermission()
+
+  const msgs=[
+    "Sip time! 💧",
+    "Your droplet is thirsty 😄",
+    "Glug glug time 🫧",
+    "Hydration check 🚰",
+    "Quick splash break!"
+  ]
+
+  setInterval(()=>{
+    const remaining=Math.max(0,GOAL-data.today)
+    const target=Math.round(remaining/4)
+
+    const msg=msgs[Math.floor(Math.random()*msgs.length)]
+
+    if(Notification.permission==="granted"){
+      new Notification(msg,{body:`Have ~${target} ml now`})
+    }
+  },3*60*60*1000)
+}
+
+setupNotifications()
 update()
 </script>
 
