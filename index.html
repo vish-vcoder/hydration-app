@@ -32,13 +32,6 @@ body{
   text-align:center;
 }
 
-.droplet-wrap{
-  width:220px;
-  margin:auto;
-  transition:.15s;
-}
-.droplet-wrap:active{transform:scale(.96)}
-
 svg{
   width:220px;
   height:260px;
@@ -68,6 +61,7 @@ button{
 
 .progress{margin:10px;font-weight:600}
 
+/* graph */
 .graph{
   margin-top:14px;
   height:60px;
@@ -85,6 +79,15 @@ button{
 
 .streak{margin-top:6px;font-size:14px}
 .message{margin-top:6px;font-weight:600;color:#ff4d4d}
+
+/* 🌊 wave animation */
+.wave{
+  animation:waveMove 3s linear infinite;
+}
+@keyframes waveMove{
+  from{transform:translateX(0)}
+  to{transform:translateX(-40px)}
+}
 </style>
 </head>
 
@@ -94,45 +97,44 @@ button{
 
 <h3>Hydrate 💧</h3>
 
-<div class="droplet-wrap" id="dropWrap">
-
-<!-- PURE SVG SAFE VERSION -->
-<svg viewBox="0 0 200 260">
+<svg id="svg" viewBox="0 0 200 260">
 
 <defs>
-  <!-- 🔥 KEY FIX HERE -->
-  <clipPath id="clip" clipPathUnits="userSpaceOnUse">
-    <path d="M100 10
-             C60 70 25 120 25 165
-             A75 75 0 0 0 175 165
-             C175 120 140 70 100 10Z"/>
-  </clipPath>
+<clipPath id="clip" clipPathUnits="userSpaceOnUse">
+  <path d="M100 10 C60 70 25 120 25 165
+           A75 75 0 0 0 175 165
+           C175 120 140 70 100 10Z"/>
+</clipPath>
 
-  <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0%" stop-color="#9be1ff"/>
-    <stop offset="100%" stop-color="#1e88ff"/>
-  </linearGradient>
+<linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0%" stop-color="#9be1ff"/>
+  <stop offset="100%" stop-color="#1e88ff"/>
+</linearGradient>
 </defs>
 
-<!-- water -->
-<rect id="waterRect"
-      x="0"
-      y="260"
-      width="200"
-      height="0"
-      fill="url(#waterGradient)"
-      clip-path="url(#clip)"/>
+<!-- water group -->
+<g clip-path="url(#clip)" id="waterGroup">
+
+  <rect id="waterRect"
+        x="0" y="260"
+        width="200" height="0"
+        fill="url(#waterGrad)"/>
+
+  <!-- 🌊 wave overlay -->
+  <path id="wave"
+        class="wave"
+        fill="rgba(255,255,255,.35)"
+        d="M0 0 Q20 8 40 0 T80 0 T120 0 T160 0 T200 0 V40 H0Z"/>
+</g>
 
 <!-- outline -->
 <path id="outline"
-      d="M100 10 C60 70 25 120 25 165 A75 75 0 0 0 175 165 C175 120 140 70 100 10Z"
-      stroke="#4da6ff"
-      stroke-width="6"
-      fill="none"/>
+d="M100 10 C60 70 25 120 25 165
+   A75 75 0 0 0 175 165
+   C175 120 140 70 100 10Z"
+stroke="#4da6ff" stroke-width="6" fill="none"/>
 
 </svg>
-
-</div>
 
 <div class="progress" id="progress"></div>
 
@@ -161,25 +163,37 @@ let data=JSON.parse(localStorage.getItem("hydration"))||{
   lastFail:false
 }
 
-function save(){localStorage.setItem("hydration",JSON.stringify(data))}
-
-/* bubble sound */
-function bubble(){
-  const ctx=new AudioContext()
-  const o=ctx.createOscillator()
-  const g=ctx.createGain()
-  o.frequency.value=800
-  o.connect(g);g.connect(ctx.destination)
-  g.gain.setValueAtTime(.2,ctx.currentTime)
-  g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.2)
-  o.start();o.stop(ctx.currentTime+.2)
+function save(){
+  localStorage.setItem("hydration",JSON.stringify(data))
 }
 
+/* 🫧 realistic bubbles/glug sound */
+function bubble(){
+  const ctx=new AudioContext()
+
+  function pop(freq,time){
+    const o=ctx.createOscillator()
+    const g=ctx.createGain()
+    o.frequency.value=freq
+    o.type="sine"
+    o.connect(g);g.connect(ctx.destination)
+    g.gain.setValueAtTime(.15,ctx.currentTime+time)
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+time+.12)
+    o.start(ctx.currentTime+time)
+    o.stop(ctx.currentTime+time+.12)
+  }
+
+  pop(700,0)
+  pop(900,.05)
+  pop(600,.1)
+  pop(1200,.15)
+}
+
+/* actions */
 function add(v){
   history.push(v)
   data.today+=v
   bubble()
-  data.lastFail=false
   update()
 }
 
@@ -198,49 +212,19 @@ function resetDay(){
 
 function update(){
   const pct=Math.min(100,(data.today/GOAL)*100)
+  const h=260*(pct/100)
 
   const rect=document.getElementById("waterRect")
-  const h=260*(pct/100)
   rect.setAttribute("height",h)
   rect.setAttribute("y",260-h)
 
-  const outline=document.getElementById("outline")
-  const wrap=document.getElementById("dropWrap")
-  const msg=document.getElementById("message")
+  document.getElementById("wave")
+    .setAttribute("transform",`translate(0,${260-h-10})`)
 
-  wrap.classList.remove("glow")
-  msg.innerText=""
+  document.getElementById("progress").innerText=
+    `${data.today} / ${GOAL} ml`
 
-  if(data.today>=GOAL){
-    wrap.classList.add("glow")
-    msg.innerText="Good 💧"
-    outline.setAttribute("stroke","#4da6ff")
-  }
-  else if(data.lastFail){
-    outline.setAttribute("stroke","#ff4d4d")
-    msg.innerText="Let’s hydrate better tomorrow 💧"
-  }
-  else{
-    outline.setAttribute("stroke","#4da6ff")
-  }
-
-  document.getElementById("progress").innerText=`${data.today} / ${GOAL} ml`
-  document.getElementById("streak").innerText=`🔥 ${data.streak} day streak • Best ${data.best}`
-
-  drawGraph()
   save()
-}
-
-function drawGraph(){
-  const g=document.getElementById("graph")
-  g.innerHTML=""
-  const max=Math.max(...data.history,GOAL)
-  data.history.forEach(v=>{
-    const b=document.createElement("div")
-    b.className="bar"
-    b.style.height=(v/max*60)+"px"
-    g.appendChild(b)
-  })
 }
 
 update()
