@@ -32,7 +32,6 @@ body{
   text-align:center;
 }
 
-/* SVG */
 svg{ width:220px;height:260px }
 
 /* glow */
@@ -41,30 +40,13 @@ svg{ width:220px;height:260px }
 }
 
 /* jiggle */
-.jiggle{
-  animation:jig .35s;
-}
+.jiggle{ animation:jig .35s }
 @keyframes jig{
   0%{transform:rotate(-2deg)}
   50%{transform:rotate(2deg)}
   100%{transform:rotate(0)}
 }
 
-/* fish */
-.fish{
-  position:absolute;
-  font-size:22px;
-  opacity:0;
-}
-.swim{
-  animation:swim 3s linear forwards;
-}
-@keyframes swim{
-  0%{left:-40px;opacity:1}
-  100%{left:260px;opacity:1}
-}
-
-/* buttons */
 button{
   border:none;
   border-radius:14px;
@@ -78,8 +60,7 @@ button{
 .reset{background:#ff4d4d}
 
 .progress{margin:10px;font-weight:600}
-
-.message{margin-top:6px;font-weight:600;color:#ff4d4d}
+.message{margin-top:6px;font-weight:600}
 </style>
 </head>
 
@@ -88,8 +69,6 @@ button{
 <div class="card">
 
 <h3>Hydrate 💧</h3>
-
-<div style="position:relative">
 
 <svg viewBox="0 0 200 260" id="svg">
 
@@ -118,9 +97,6 @@ stroke="#4da6ff" stroke-width="6" fill="none"/>
 
 </svg>
 
-<div id="fish" class="fish">🐟</div>
-</div>
-
 <div class="progress" id="progress"></div>
 
 <div>
@@ -141,7 +117,9 @@ const GOAL=1500
 let history=[]
 
 let data=JSON.parse(localStorage.getItem("hydration"))||{
-  today:0
+  today:0,
+  date:new Date().toDateString(),
+  lastFail:false
 }
 
 function save(){
@@ -151,19 +129,13 @@ function save(){
 /* bubble sound */
 function bubble(){
   const ctx=new AudioContext()
-
-  function pop(freq,time){
-    const o=ctx.createOscillator()
-    const g=ctx.createGain()
-    o.frequency.value=freq
-    o.connect(g);g.connect(ctx.destination)
-    g.gain.setValueAtTime(.2,ctx.currentTime+time)
-    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+time+.12)
-    o.start(ctx.currentTime+time)
-    o.stop(ctx.currentTime+time+.12)
-  }
-
-  pop(600,0); pop(900,.05); pop(1200,.1)
+  const o=ctx.createOscillator()
+  const g=ctx.createGain()
+  o.frequency.value=700
+  o.connect(g);g.connect(ctx.destination)
+  g.gain.setValueAtTime(.2,ctx.currentTime)
+  g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.15)
+  o.start();o.stop(ctx.currentTime+.15)
 }
 
 /* jiggle */
@@ -171,14 +143,6 @@ function jiggle(){
   const s=document.getElementById("svg")
   s.classList.add("jiggle")
   setTimeout(()=>s.classList.remove("jiggle"),300)
-}
-
-/* fish swim */
-function fishSwim(){
-  const f=document.getElementById("fish")
-  f.classList.remove("swim")
-  void f.offsetWidth
-  f.classList.add("swim")
 }
 
 /* actions */
@@ -207,7 +171,15 @@ function resetDay(){
   update()
 }
 
-/* update UI */
+/* daily rollover */
+const todayStr=new Date().toDateString()
+if(data.date!==todayStr){
+  data.lastFail = data.today < GOAL
+  data.today=0
+  data.date=todayStr
+}
+
+/* UI */
 function update(){
   const pct=Math.min(100,(data.today/GOAL)*100)
   const h=260*(pct/100)
@@ -216,26 +188,37 @@ function update(){
   rect.setAttribute("height",h)
   rect.setAttribute("y",260-h)
 
-  document.getElementById("progress").innerText=
-    `${data.today} / ${GOAL} ml`
-
+  const outline=document.getElementById("outline")
+  const svg=document.getElementById("svg")
   const msg=document.getElementById("message")
+
+  svg.classList.remove("glow")
   msg.innerText=""
 
   if(data.today>=GOAL){
-    document.getElementById("svg").classList.add("glow")
-    msg.innerText="Good Girl💧"
-    fishSwim()
-  }else{
-    document.getElementById("svg").classList.remove("glow")
+    svg.classList.add("glow")
+    msg.innerText="Good Madhu ❤️❤️❤️"
+    outline.setAttribute("stroke","#4da6ff")
+    data.lastFail=false
   }
+  else if(data.lastFail){
+    outline.setAttribute("stroke","#ff4d4d")
+    msg.innerText="Bad Madhu 💔💔💔 Hydrate Better tomorrow"
+  }
+  else{
+    outline.setAttribute("stroke","#4da6ff")
+  }
+
+  document.getElementById("progress").innerText=
+    `${data.today} / ${GOAL} ml`
 
   save()
 }
 
-/* fun smart notifications */
+/* 🔔 FUN SMART NOTIFICATIONS */
 function setupNotifications(){
   if(!("Notification" in window)) return
+
   Notification.requestPermission()
 
   const msgs=[
@@ -243,8 +226,8 @@ function setupNotifications(){
     "Your droplet is thirsty 😄",
     "Glug glug time 🫧",
     "Hydration check 🚰",
-    "Drink water Madhu!!!",
-    "Quick splash break!"
+    "Quick splash break!",
+    "Drink water Madhu 💙"
   ]
 
   setInterval(()=>{
@@ -265,6 +248,3 @@ update()
 
 </body>
 </html>
-
-
-
