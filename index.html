@@ -61,6 +61,26 @@ button{
 
 .progress{margin:10px;font-weight:600}
 .message{margin-top:6px;font-weight:600}
+
+.graph{
+  margin-top:12px;
+  height:60px;
+  display:flex;
+  align-items:flex-end;
+  gap:6px;
+  justify-content:center;
+}
+.bar{
+  width:10px;
+  background:#4da6ff;
+  border-radius:6px;
+  opacity:.7;
+}
+
+.streak{
+  font-size:14px;
+  margin-top:6px;
+}
 </style>
 </head>
 
@@ -108,6 +128,8 @@ stroke="#4da6ff" stroke-width="6" fill="none"/>
 <button onclick="resetDay()" class="reset">Reset</button>
 </div>
 
+<div class="graph" id="graph"></div>
+<div class="streak" id="streak"></div>
 <div class="message" id="message"></div>
 
 </div>
@@ -119,14 +141,17 @@ let history=[]
 let data=JSON.parse(localStorage.getItem("hydration"))||{
   today:0,
   date:new Date().toDateString(),
-  lastFail:false
+  lastFail:false,
+  streak:0,
+  best:0,
+  history:Array(7).fill(0)
 }
 
 function save(){
   localStorage.setItem("hydration",JSON.stringify(data))
 }
 
-/* bubble sound */
+/* sound */
 function bubble(){
   const ctx=new AudioContext()
   const o=ctx.createOscillator()
@@ -173,10 +198,37 @@ function resetDay(){
 
 /* daily rollover */
 const todayStr=new Date().toDateString()
+
 if(data.date!==todayStr){
-  data.lastFail = data.today < GOAL
+
+  if(data.today>=GOAL){
+    data.streak++
+    data.best=Math.max(data.best,data.streak)
+    data.lastFail=false
+  }else{
+    data.streak=0
+    data.lastFail=true
+  }
+
+  data.history.push(data.today)
+  data.history.shift()
+
   data.today=0
   data.date=todayStr
+}
+
+/* weekly graph */
+function drawGraph(){
+  const g=document.getElementById("graph")
+  g.innerHTML=""
+  const max=Math.max(...data.history,GOAL)
+
+  data.history.forEach(v=>{
+    const b=document.createElement("div")
+    b.className="bar"
+    b.style.height=(v/max*60)+"px"
+    g.appendChild(b)
+  })
 }
 
 /* UI */
@@ -188,8 +240,8 @@ function update(){
   rect.setAttribute("height",h)
   rect.setAttribute("y",260-h)
 
-  const outline=document.getElementById("outline")
   const svg=document.getElementById("svg")
+  const outline=document.getElementById("outline")
   const msg=document.getElementById("message")
 
   svg.classList.remove("glow")
@@ -197,28 +249,27 @@ function update(){
 
   if(data.today>=GOAL){
     svg.classList.add("glow")
-    msg.innerText="Good Madhu ❤️❤️❤️"
     outline.setAttribute("stroke","#4da6ff")
-    data.lastFail=false
+    msg.innerText="Good Madhu❤️❤️❤️"
   }
   else if(data.lastFail){
     outline.setAttribute("stroke","#ff4d4d")
-    msg.innerText="Bad Madhu 💔💔💔 Hydrate Better tomorrow"
+    msg.innerText="Bad Madhu 💔💔💔 Hydrate well tomorrow"
   }
   else{
     outline.setAttribute("stroke","#4da6ff")
   }
 
-  document.getElementById("progress").innerText=
-    `${data.today} / ${GOAL} ml`
+  document.getElementById("progress").innerText=`${data.today} / ${GOAL} ml`
+  document.getElementById("streak").innerText=`🔥 ${data.streak} day streak • Best ${data.best}`
 
+  drawGraph()
   save()
 }
 
-/* 🔔 FUN SMART NOTIFICATIONS */
+/* notifications */
 function setupNotifications(){
   if(!("Notification" in window)) return
-
   Notification.requestPermission()
 
   const msgs=[
@@ -226,14 +277,13 @@ function setupNotifications(){
     "Your droplet is thirsty 😄",
     "Glug glug time 🫧",
     "Hydration check 🚰",
-    "Quick splash break!",
-    "Drink water Madhu 💙"
+    "Drink water Madhu💙!!!",
+    "Quick splash break!"
   ]
 
   setInterval(()=>{
     const remaining=Math.max(0,GOAL-data.today)
     const target=Math.round(remaining/4)
-
     const msg=msgs[Math.floor(Math.random()*msgs.length)]
 
     if(Notification.permission==="granted"){
