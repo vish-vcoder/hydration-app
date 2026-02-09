@@ -124,6 +124,7 @@ stroke="#4da6ff" stroke-width="6" fill="none"/>
 <button onclick="add(250)">+250</button>
 <button onclick="add(500)">+500</button>
 <button onclick="custom()">Custom</button>
+<button onclick="enableNotify()">Enable 🔔</button>
 <button onclick="undo()" class="undo">Undo</button>
 <button onclick="resetDay()" class="reset">Reset</button>
 </div>
@@ -188,6 +189,12 @@ function undo(){
   if(!history.length) return
   data.today-=history.pop()
   update()
+}
+  
+function enableNotify(){
+  Notification.requestPermission().then(p=>{
+    alert("Permission: " + p)
+  })
 }
 
 function resetDay(){
@@ -299,3 +306,4 @@ update()
 
 </body>
 </html>
+
