@@ -292,6 +292,7 @@ function setupNotifications(){
   },3*60*60*1000)
 }
 
+Notification.requestPermission().then(p => console.log(p))
 setupNotifications()
 update()
 </script>
