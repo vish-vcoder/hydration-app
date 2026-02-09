@@ -22,7 +22,7 @@ body{
   height:100vh;
 }
 
-/* ===== glass card ===== */
+/* glass card */
 .card{
   width:340px;
   padding:22px;
@@ -33,63 +33,30 @@ body{
   text-align:center;
 }
 
-/* ===== droplet ===== */
-
+/* droplet */
 .droplet-wrap{
   width:220px;
   margin:auto;
-  cursor:pointer;
+  transition:.15s;
 }
+.droplet-wrap:active{transform:scale(.96)}
 
 svg{
   width:220px;
   height:260px;
 }
 
-/* water */
-.fill{
-  width:100%;
-  height:0%;
-  background:
-    radial-gradient(circle at 50% 20%,#a6e6ff 0%,#4da6ff 50%,#1e88ff 100%);
-  transition:height .9s cubic-bezier(.2,.8,.2,1);
-  position:relative;
-}
-
-/* wave */
-.wave{
-  position:absolute;
-  top:-10px;
-  width:200%;
-  height:20px;
-  background:rgba(255,255,255,.45);
-  border-radius:40%;
-  animation:wave 4s linear infinite;
-}
-@keyframes wave{
-  from{transform:translateX(0)}
-  to{transform:translateX(-50%)}
-}
-
 /* glow when success */
 .glow{
-  filter:drop-shadow(0 0 20px rgba(77,166,255,.9));
-  animation:pulse 1.8s infinite ease-in-out;
+  filter:drop-shadow(0 0 22px rgba(77,166,255,1));
+  animation:pulse 1.8s infinite;
 }
 @keyframes pulse{
   0%,100%{filter:drop-shadow(0 0 12px rgba(77,166,255,.6))}
-  50%{filter:drop-shadow(0 0 28px rgba(77,166,255,1))}
+  50%{filter:drop-shadow(0 0 30px rgba(77,166,255,1))}
 }
 
-/* red fail tint */
-.fail .fill{
-  background:linear-gradient(#ffb3b3,#ff4d4d);
-}
-
-/* ===== UI ===== */
-
-.progress{font-weight:600;margin:10px}
-
+/* buttons */
 button{
   border:none;
   border-radius:14px;
@@ -102,6 +69,9 @@ button{
 .undo{background:#888}
 .reset{background:var(--red)}
 
+.progress{margin:10px;font-weight:600}
+
+/* graph */
 .graph{
   margin-top:14px;
   height:60px;
@@ -118,12 +88,7 @@ button{
 }
 
 .streak{margin-top:6px;font-size:14px}
-.message{
-  margin-top:6px;
-  font-size:14px;
-  color:#ff4d4d;
-  font-weight:600;
-}
+.message{margin-top:6px;font-weight:600;color:#ff4d4d}
 </style>
 </head>
 
@@ -135,25 +100,38 @@ button{
 
 <div class="droplet-wrap" id="dropWrap">
 
+<!-- PURE SVG (Safari safe) -->
 <svg viewBox="0 0 200 260">
 
 <defs>
-<clipPath id="clip">
-<path d="M100 10 C60 70 25 120 25 165 A75 75 0 0 0 175 165 C175 120 140 70 100 10Z"/>
-</clipPath>
+  <clipPath id="clip">
+    <path d="M100 10
+             C60 70 25 120 25 165
+             A75 75 0 0 0 175 165
+             C175 120 140 70 100 10Z"/>
+  </clipPath>
+
+  <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#9be1ff"/>
+    <stop offset="100%" stop-color="#1e88ff"/>
+  </linearGradient>
 </defs>
 
-<foreignObject width="200" height="260" clip-path="url(#clip)">
-<div style="height:100%;display:flex;align-items:flex-end">
-<div class="fill" id="fill">
-<div class="wave"></div>
-</div>
-</div>
-</foreignObject>
+<!-- water rectangle -->
+<rect id="waterRect"
+      x="0"
+      y="260"
+      width="200"
+      height="0"
+      fill="url(#waterGradient)"
+      clip-path="url(#clip)"/>
 
+<!-- outline -->
 <path id="outline"
-d="M100 10 C60 70 25 120 25 165 A75 75 0 0 0 175 165 C175 120 140 70 100 10Z"
-stroke="#4da6ff" stroke-width="6" fill="none"/>
+      d="M100 10 C60 70 25 120 25 165 A75 75 0 0 0 175 165 C175 120 140 70 100 10Z"
+      stroke="#4da6ff"
+      stroke-width="6"
+      fill="none"/>
 
 </svg>
 
@@ -188,7 +166,9 @@ let data=JSON.parse(localStorage.getItem("hydration"))||{
   lastFail:false
 }
 
-function save(){localStorage.setItem("hydration",JSON.stringify(data))}
+function save(){
+  localStorage.setItem("hydration",JSON.stringify(data))
+}
 
 /* bubble sound */
 function bubble(){
@@ -206,6 +186,7 @@ function bubble(){
   pop(600,0); pop(900,.05); pop(1200,.1)
 }
 
+/* actions */
 function add(v){
   history.push(v)
   data.today+=v
@@ -227,35 +208,37 @@ function resetDay(){
   update()
 }
 
-/* ===== UI ===== */
-
+/* UI update */
 function update(){
   const pct=Math.min(100,(data.today/GOAL)*100)
-  const fill=document.getElementById("fill")
+
+  const rect=document.getElementById("waterRect")
+  const h=260*(pct/100)
+  rect.setAttribute("height",h)
+  rect.setAttribute("y",260-h)
+
   const outline=document.getElementById("outline")
   const wrap=document.getElementById("dropWrap")
   const msg=document.getElementById("message")
 
-  fill.style.height=pct+"%"
-  document.getElementById("progress").innerText=
-    `${data.today} / ${GOAL} ml`
-
-  wrap.classList.remove("glow","fail")
+  wrap.classList.remove("glow")
   msg.innerText=""
 
   if(data.today>=GOAL){
     wrap.classList.add("glow")
-    outline.style.stroke="#4da6ff"
-	document.getElementById("message").innerText = "Good Girl"
+    outline.setAttribute("stroke","#4da6ff")
+    msg.innerText="Good 💧"
   }
   else if(data.lastFail){
-    wrap.classList.add("fail")
-    outline.style.stroke="#ff4d4d"
+    outline.setAttribute("stroke","#ff4d4d")
     msg.innerText="Let’s hydrate better tomorrow 💧"
   }
   else{
-    outline.style.stroke="#4da6ff"
+    outline.setAttribute("stroke","#4da6ff")
   }
+
+  document.getElementById("progress").innerText=
+    `${data.today} / ${GOAL} ml`
 
   document.getElementById("streak").innerText=
     `🔥 ${data.streak} day streak • Best ${data.best}`
@@ -276,12 +259,10 @@ function drawGraph(){
   })
 }
 
-/* ===== daily rollover ===== */
-
+/* daily rollover */
 const todayStr=new Date().toDateString()
 
 if(data.date!==todayStr){
-
   if(data.today>=GOAL){
     data.streak++
     data.best=Math.max(data.best,data.streak)
