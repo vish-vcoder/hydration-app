@@ -22,7 +22,6 @@ body{
   height:100vh;
 }
 
-/* glass card */
 .card{
   width:340px;
   padding:22px;
@@ -33,7 +32,6 @@ body{
   text-align:center;
 }
 
-/* droplet */
 .droplet-wrap{
   width:220px;
   margin:auto;
@@ -46,17 +44,16 @@ svg{
   height:260px;
 }
 
-/* glow when success */
+/* glow */
 .glow{
-  filter:drop-shadow(0 0 22px rgba(77,166,255,1));
+  filter:drop-shadow(0 0 24px rgba(77,166,255,1));
   animation:pulse 1.8s infinite;
 }
 @keyframes pulse{
-  0%,100%{filter:drop-shadow(0 0 12px rgba(77,166,255,.6))}
+  0%,100%{filter:drop-shadow(0 0 10px rgba(77,166,255,.6))}
   50%{filter:drop-shadow(0 0 30px rgba(77,166,255,1))}
 }
 
-/* buttons */
 button{
   border:none;
   border-radius:14px;
@@ -71,7 +68,6 @@ button{
 
 .progress{margin:10px;font-weight:600}
 
-/* graph */
 .graph{
   margin-top:14px;
   height:60px;
@@ -100,11 +96,12 @@ button{
 
 <div class="droplet-wrap" id="dropWrap">
 
-<!-- PURE SVG (Safari safe) -->
+<!-- PURE SVG SAFE VERSION -->
 <svg viewBox="0 0 200 260">
 
 <defs>
-  <clipPath id="clip">
+  <!-- 🔥 KEY FIX HERE -->
+  <clipPath id="clip" clipPathUnits="userSpaceOnUse">
     <path d="M100 10
              C60 70 25 120 25 165
              A75 75 0 0 0 175 165
@@ -117,7 +114,7 @@ button{
   </linearGradient>
 </defs>
 
-<!-- water rectangle -->
+<!-- water -->
 <rect id="waterRect"
       x="0"
       y="260"
@@ -158,35 +155,26 @@ const GOAL=1500
 let history=[]
 
 let data=JSON.parse(localStorage.getItem("hydration"))||{
-  today:0,
-  streak:0,
-  best:0,
+  today:0, streak:0, best:0,
   history:Array(7).fill(0),
   date:new Date().toDateString(),
   lastFail:false
 }
 
-function save(){
-  localStorage.setItem("hydration",JSON.stringify(data))
-}
+function save(){localStorage.setItem("hydration",JSON.stringify(data))}
 
 /* bubble sound */
 function bubble(){
   const ctx=new AudioContext()
-  function pop(f,t){
-    const o=ctx.createOscillator()
-    const g=ctx.createGain()
-    o.frequency.value=f
-    o.connect(g);g.connect(ctx.destination)
-    g.gain.setValueAtTime(.15,ctx.currentTime+t)
-    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+t+.15)
-    o.start(ctx.currentTime+t)
-    o.stop(ctx.currentTime+t+.15)
-  }
-  pop(600,0); pop(900,.05); pop(1200,.1)
+  const o=ctx.createOscillator()
+  const g=ctx.createGain()
+  o.frequency.value=800
+  o.connect(g);g.connect(ctx.destination)
+  g.gain.setValueAtTime(.2,ctx.currentTime)
+  g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.2)
+  o.start();o.stop(ctx.currentTime+.2)
 }
 
-/* actions */
 function add(v){
   history.push(v)
   data.today+=v
@@ -208,7 +196,6 @@ function resetDay(){
   update()
 }
 
-/* UI update */
 function update(){
   const pct=Math.min(100,(data.today/GOAL)*100)
 
@@ -226,8 +213,8 @@ function update(){
 
   if(data.today>=GOAL){
     wrap.classList.add("glow")
-    outline.setAttribute("stroke","#4da6ff")
     msg.innerText="Good 💧"
+    outline.setAttribute("stroke","#4da6ff")
   }
   else if(data.lastFail){
     outline.setAttribute("stroke","#ff4d4d")
@@ -237,11 +224,8 @@ function update(){
     outline.setAttribute("stroke","#4da6ff")
   }
 
-  document.getElementById("progress").innerText=
-    `${data.today} / ${GOAL} ml`
-
-  document.getElementById("streak").innerText=
-    `🔥 ${data.streak} day streak • Best ${data.best}`
+  document.getElementById("progress").innerText=`${data.today} / ${GOAL} ml`
+  document.getElementById("streak").innerText=`🔥 ${data.streak} day streak • Best ${data.best}`
 
   drawGraph()
   save()
@@ -257,26 +241,6 @@ function drawGraph(){
     b.style.height=(v/max*60)+"px"
     g.appendChild(b)
   })
-}
-
-/* daily rollover */
-const todayStr=new Date().toDateString()
-
-if(data.date!==todayStr){
-  if(data.today>=GOAL){
-    data.streak++
-    data.best=Math.max(data.best,data.streak)
-    data.lastFail=false
-  }else{
-    data.streak=0
-    data.lastFail=true
-  }
-
-  data.history.push(data.today)
-  data.history.shift()
-
-  data.today=0
-  data.date=todayStr
 }
 
 update()
