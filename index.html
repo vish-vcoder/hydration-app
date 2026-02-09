@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hydrate 💧</title>
+
+<style>
+:root{
+  --blue:#4da6ff;
+  --red:#ff4d4d;
+  --bg:linear-gradient(180deg,#f7fbff,#eaf4ff);
+}
+
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+/* ===== glass card ===== */
+.card{
+  width:340px;
+  padding:22px;
+  border-radius:28px;
+  background:rgba(255,255,255,.55);
+  backdrop-filter:blur(20px);
+  box-shadow:0 20px 40px rgba(0,0,0,.08);
+  text-align:center;
+}
+
+/* ===== droplet ===== */
+
+.droplet-wrap{
+  width:220px;
+  margin:auto;
+  cursor:pointer;
+}
+
+svg{
+  width:220px;
+  height:260px;
+}
+
+/* water */
+.fill{
+  width:100%;
+  height:0%;
+  background:
+    radial-gradient(circle at 50% 20%,#a6e6ff 0%,#4da6ff 50%,#1e88ff 100%);
+  transition:height .9s cubic-bezier(.2,.8,.2,1);
+  position:relative;
+}
+
+/* wave */
+.wave{
+  position:absolute;
+  top:-10px;
+  width:200%;
+  height:20px;
+  background:rgba(255,255,255,.45);
+  border-radius:40%;
+  animation:wave 4s linear infinite;
+}
+@keyframes wave{
+  from{transform:translateX(0)}
+  to{transform:translateX(-50%)}
+}
+
+/* glow when success */
+.glow{
+  filter:drop-shadow(0 0 20px rgba(77,166,255,.9));
+  animation:pulse 1.8s infinite ease-in-out;
+}
+@keyframes pulse{
+  0%,100%{filter:drop-shadow(0 0 12px rgba(77,166,255,.6))}
+  50%{filter:drop-shadow(0 0 28px rgba(77,166,255,1))}
+}
+
+/* red fail tint */
+.fail .fill{
+  background:linear-gradient(#ffb3b3,#ff4d4d);
+}
+
+/* ===== UI ===== */
+
+.progress{font-weight:600;margin:10px}
+
+button{
+  border:none;
+  border-radius:14px;
+  padding:9px 14px;
+  margin:4px;
+  font-weight:600;
+  background:var(--blue);
+  color:white;
+}
+.undo{background:#888}
+.reset{background:var(--red)}
+
+.graph{
+  margin-top:14px;
+  height:60px;
+  display:flex;
+  align-items:flex-end;
+  gap:6px;
+  justify-content:center;
+}
+.bar{
+  width:10px;
+  background:#4da6ff;
+  border-radius:6px;
+  opacity:.7;
+}
+
+.streak{margin-top:6px;font-size:14px}
+.message{
+  margin-top:6px;
+  font-size:14px;
+  color:#ff4d4d;
+  font-weight:600;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h3>Hydrate 💧</h3>
+
+<div class="droplet-wrap" id="dropWrap">
+
+<svg viewBox="0 0 200 260">
+
+<defs>
+<clipPath id="clip">
+<path d="M100 10 C60 70 25 120 25 165 A75 75 0 0 0 175 165 C175 120 140 70 100 10Z"/>
+</clipPath>
+</defs>
+
+<foreignObject width="200" height="260" clip-path="url(#clip)">
+<div style="height:100%;display:flex;align-items:flex-end">
+<div class="fill" id="fill">
+<div class="wave"></div>
+</div>
+</div>
+</foreignObject>
+
+<path id="outline"
+d="M100 10 C60 70 25 120 25 165 A75 75 0 0 0 175 165 C175 120 140 70 100 10Z"
+stroke="#4da6ff" stroke-width="6" fill="none"/>
+
+</svg>
+
+</div>
+
+<div class="progress" id="progress"></div>
+
+<div>
+<button onclick="add(100)">+100</button>
+<button onclick="add(250)">+250</button>
+<button onclick="add(500)">+500</button>
+<button onclick="undo()" class="undo">Undo</button>
+<button onclick="resetDay()" class="reset">Reset</button>
+</div>
+
+<div class="graph" id="graph"></div>
+<div class="streak" id="streak"></div>
+<div class="message" id="message"></div>
+
+</div>
+
+<script>
+const GOAL=1500
+let history=[]
+
+let data=JSON.parse(localStorage.getItem("hydration"))||{
+  today:0,
+  streak:0,
+  best:0,
+  history:Array(7).fill(0),
+  date:new Date().toDateString(),
+  lastFail:false
+}
+
+function save(){localStorage.setItem("hydration",JSON.stringify(data))}
+
+/* bubble sound */
+function bubble(){
+  const ctx=new AudioContext()
+  function pop(f,t){
+    const o=ctx.createOscillator()
+    const g=ctx.createGain()
+    o.frequency.value=f
+    o.connect(g);g.connect(ctx.destination)
+    g.gain.setValueAtTime(.15,ctx.currentTime+t)
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+t+.15)
+    o.start(ctx.currentTime+t)
+    o.stop(ctx.currentTime+t+.15)
+  }
+  pop(600,0); pop(900,.05); pop(1200,.1)
+}
+
+function add(v){
+  history.push(v)
+  data.today+=v
+  bubble()
+  data.lastFail=false
+  update()
+}
+
+function undo(){
+  if(!history.length) return
+  data.today-=history.pop()
+  update()
+}
+
+function resetDay(){
+  if(!confirm("Reset today’s logs?")) return
+  data.today=0
+  history=[]
+  update()
+}
+
+/* ===== UI ===== */
+
+function update(){
+  const pct=Math.min(100,(data.today/GOAL)*100)
+  const fill=document.getElementById("fill")
+  const outline=document.getElementById("outline")
+  const wrap=document.getElementById("dropWrap")
+  const msg=document.getElementById("message")
+
+  fill.style.height=pct+"%"
+  document.getElementById("progress").innerText=
+    `${data.today} / ${GOAL} ml`
+
+  wrap.classList.remove("glow","fail")
+  msg.innerText=""
+
+  if(data.today>=GOAL){
+    wrap.classList.add("glow")
+    outline.style.stroke="#4da6ff"
+	document.getElementById("message").innerText = "Good Girl"
+  }
+  else if(data.lastFail){
+    wrap.classList.add("fail")
+    outline.style.stroke="#ff4d4d"
+    msg.innerText="Let’s hydrate better tomorrow 💧"
+  }
+  else{
+    outline.style.stroke="#4da6ff"
+  }
+
+  document.getElementById("streak").innerText=
+    `🔥 ${data.streak} day streak • Best ${data.best}`
+
+  drawGraph()
+  save()
+}
+
+function drawGraph(){
+  const g=document.getElementById("graph")
+  g.innerHTML=""
+  const max=Math.max(...data.history,GOAL)
+  data.history.forEach(v=>{
+    const b=document.createElement("div")
+    b.className="bar"
+    b.style.height=(v/max*60)+"px"
+    g.appendChild(b)
+  })
+}
+
+/* ===== daily rollover ===== */
+
+const todayStr=new Date().toDateString()
+
+if(data.date!==todayStr){
+
+  if(data.today>=GOAL){
+    data.streak++
+    data.best=Math.max(data.best,data.streak)
+    data.lastFail=false
+  }else{
+    data.streak=0
+    data.lastFail=true
+  }
+
+  data.history.push(data.today)
+  data.history.shift()
+
+  data.today=0
+  data.date=todayStr
+}
+
+update()
+</script>
+
+</body>
+</html>
